@@ -92,7 +92,7 @@ func (r *RayJobReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 		if isJobPendingOrRunning(rayJobInstance.Status.JobStatus) {
 			rayDashboardClient := utils.GetRayDashboardClientFunc()
 			rayDashboardClient.InitClient(rayJobInstance.Status.DashboardURL)
-			err := rayDashboardClient.StopJob(rayJobInstance.Status.JobId, &r.Log)
+			err := rayDashboardClient.StopJob(ctx, rayJobInstance.Status.JobId, &r.Log)
 			if err != nil {
 				r.Log.Info("Failed to stop job", "error", err)
 			}
@@ -178,7 +178,7 @@ func (r *RayJobReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 	}
 
 	// Check the current status of ray jobs before submitting.
-	jobInfo, err := rayDashboardClient.GetJobInfo(rayJobInstance.Status.JobId)
+	jobInfo, err := rayDashboardClient.GetJobInfo(ctx, rayJobInstance.Status.JobId)
 	if err != nil {
 		err = r.updateState(ctx, rayJobInstance, jobInfo, rayJobInstance.Status.JobStatus, rayv1alpha1.JobDeploymentStatusFailedToGetJobStatus, err)
 		// Dashboard service in head pod takes time to start, it's possible we get connection refused error.
@@ -189,7 +189,7 @@ func (r *RayJobReconciler) Reconcile(ctx context.Context, request ctrl.Request) 
 	r.Log.V(1).Info("RayJob information", "RayJob", rayJobInstance.Name, "jobInfo", jobInfo, "rayJobInstance", rayJobInstance.Status.JobStatus)
 	if jobInfo == nil {
 		// Submit the job if no id set
-		jobId, err := rayDashboardClient.SubmitJob(rayJobInstance, &r.Log)
+		jobId, err := rayDashboardClient.SubmitJob(ctx, rayJobInstance, &r.Log)
 		if err != nil {
 			r.Log.Error(err, "failed to submit job")
 			err = r.updateState(ctx, rayJobInstance, jobInfo, rayJobInstance.Status.JobStatus, rayv1alpha1.JobDeploymentStatusFailedJobDeploy, err)
